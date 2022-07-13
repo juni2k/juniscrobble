@@ -41,51 +41,47 @@ wchar_t* GetPlayingFileName() {
 }
 
 LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
-	if (message == WM_WA_IPC && lParam == IPC_CB_MISC && wParam == IPC_CB_MISC_STATUS) {
-		/* Playback status has changed... are we playing something? */
-		if (SendMessage(plugin.hwndParent, WM_WA_IPC, 0, IPC_ISPLAYING) == 1) {
-			/* yeah, we are. what's the artist/title? */
+	if (message == WM_WA_IPC && lParam == IPC_PLAYING_FILEW) {
+		/* We are playing a file! Path is in wParam. */
 
-			/* Here's the thing: IPC_GET_PLAYING_TITLE works, but it returns an "$artist - $title" string.
-			We could split that, but it would provide incorrect values for artists containing a dash.
-			The best way seems to be to fetch the	filename, then ask Winamp for metadata about that file. This sucks. */
-			wchar_t *filename = GetPlayingFileName();
+		/* Here's the thing: IPC_GET_PLAYING_TITLE works, but it returns an "$artist - $title" string.
+		We could split that, but it would provide incorrect values for artists containing a dash.
+		The best way seems to be to fetch the	filename, then ask Winamp for metadata about that file. This sucks. */
+		wchar_t* filename = (wchar_t *)wParam;
 
-			extendedFileInfoStructW info;
+		extendedFileInfoStructW info;
 
-			/* The result buffer gets nuked after SendMessage() returns.
-			Make sure to copy relevant data out of it as soon as possible. */
-			wchar_t result[256] = {0};
+		/* The result buffer gets nuked after SendMessage() returns.
+		Make sure to copy relevant data out of it as soon as possible. */
+		wchar_t result[256] = {0};
 
-			/* query the artist */
-			wchar_t artist[256];
-			info.filename = filename;
-			info.metadata = L"artist";
-			info.ret = result;
-			info.retlen = sizeof(result) / sizeof(wchar_t);
-			/* Return value doesn't seem to matter. I get 0 which, according to the API, means that the decoder
-			doesn't support this method. Whatever. It works. */
-			SendMessage(plugin.hwndParent, WM_WA_IPC, (WPARAM)&info, IPC_GET_EXTENDED_FILE_INFOW);
-			memcpy(artist, result, sizeof(artist));
+		/* query the artist */
+		wchar_t artist[256];
+		info.filename = filename;
+		info.metadata = L"artist";
+		info.ret = result;
+		info.retlen = sizeof(result) / sizeof(wchar_t);
+		/* Return value doesn't seem to matter. I get 0 which, according to the API, means that the decoder
+		doesn't support this method. Whatever. It works. */
+		SendMessage(plugin.hwndParent, WM_WA_IPC, (WPARAM)&info, IPC_GET_EXTENDED_FILE_INFOW);
+		memcpy(artist, result, sizeof(artist));
 
-			/* Calling IPC_GET_EXTENDED_FILE_INFOW wrecks the data inside filename but we need to use it again
-			to fetch the title... Let's request it again. SIIIGHHH. */
-			filename = GetPlayingFileName();
+		/* Calling IPC_GET_EXTENDED_FILE_INFOW wrecks the data inside filename but we need to use it again
+		to fetch the title... Let's request it again. SIIIGHHH. */
+		filename = GetPlayingFileName();
 
+		/* query the title */
+		wchar_t title[256];
+		info.filename = filename;
+		info.metadata = L"title";
+		info.ret = result;
+		info.retlen = sizeof(result) / sizeof(wchar_t);
+		SendMessage(plugin.hwndParent, WM_WA_IPC, (WPARAM)&info, IPC_GET_EXTENDED_FILE_INFOW);
+		memcpy(title, result, sizeof(title));
 
-			/* query the title */
-			wchar_t title[256];
-			info.filename = filename;
-			info.metadata = L"title";
-			info.ret = result;
-			info.retlen = sizeof(result) / sizeof(wchar_t);
-			SendMessage(plugin.hwndParent, WM_WA_IPC, (WPARAM)&info, IPC_GET_EXTENDED_FILE_INFOW);
-			memcpy(title, result, sizeof(title));
-
-			wchar_t message[1024];
-			wsprintf(message, L"artist: %s\ntitle: %s", artist, title);
-			MessageBox(plugin.hwndParent, message, L"Juniscrobble", MB_OK);
-		}
+		wchar_t message[1024];
+		wsprintf(message, L"artist: %s\ntitle: %s", artist, title);
+		MessageBox(plugin.hwndParent, message, L"Juniscrobble", MB_OK);
 	}
 
 	// Forward event to original WndProc
