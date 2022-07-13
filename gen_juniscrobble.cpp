@@ -40,6 +40,24 @@ wchar_t* GetPlayingFileName() {
 	return (wchar_t*)SendMessage(plugin.hwndParent, WM_WA_IPC, 0, IPC_GET_PLAYING_FILENAME);
 }
 
+std::wstring GetMetadata(const wchar_t *filename, const wchar_t *field) {
+	/* The result buffer gets nuked after SendMessage() returns.
+	Make sure to copy relevant data out of it as soon as possible. */
+	wchar_t buf[256] = {0};
+
+	extendedFileInfoStructW info;
+	info.filename = filename;
+	info.metadata = field;
+	info.ret = buf;
+	info.retlen = sizeof(buf) / sizeof(wchar_t);
+	/* Return value doesn't seem to matter. I get 0 which, according to the API, means that the decoder
+		doesn't support this method. Whatever. It works. */
+	SendMessage(plugin.hwndParent, WM_WA_IPC, (WPARAM)&info, IPC_GET_EXTENDED_FILE_INFOW);
+
+	std::wstring result(buf);
+	return result;
+}
+
 LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
 	if (message == WM_WA_IPC && lParam == IPC_PLAYING_FILEW) {
 		/* We are playing a file! Path is in wParam. */
@@ -49,38 +67,12 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) 
 		The best way seems to be to fetch the	filename, then ask Winamp for metadata about that file. This sucks. */
 		wchar_t* filename = (wchar_t *)wParam;
 
-		extendedFileInfoStructW info;
-
-		/* The result buffer gets nuked after SendMessage() returns.
-		Make sure to copy relevant data out of it as soon as possible. */
-		wchar_t result[256] = {0};
-
-		/* query the artist */
-		wchar_t artist[256];
-		info.filename = filename;
-		info.metadata = L"artist";
-		info.ret = result;
-		info.retlen = sizeof(result) / sizeof(wchar_t);
-		/* Return value doesn't seem to matter. I get 0 which, according to the API, means that the decoder
-		doesn't support this method. Whatever. It works. */
-		SendMessage(plugin.hwndParent, WM_WA_IPC, (WPARAM)&info, IPC_GET_EXTENDED_FILE_INFOW);
-		memcpy(artist, result, sizeof(artist));
-
-		/* Calling IPC_GET_EXTENDED_FILE_INFOW wrecks the data inside filename but we need to use it again
-		to fetch the title... Let's request it again. SIIIGHHH. */
-		filename = GetPlayingFileName();
-
-		/* query the title */
-		wchar_t title[256];
-		info.filename = filename;
-		info.metadata = L"title";
-		info.ret = result;
-		info.retlen = sizeof(result) / sizeof(wchar_t);
-		SendMessage(plugin.hwndParent, WM_WA_IPC, (WPARAM)&info, IPC_GET_EXTENDED_FILE_INFOW);
-		memcpy(title, result, sizeof(title));
+		/* query artist/title */
+		std::wstring artist = GetMetadata(filename, L"artist");
+		std::wstring title = GetMetadata(filename, L"title");
 
 		wchar_t message[1024];
-		wsprintf(message, L"artist: %s\ntitle: %s", artist, title);
+		wsprintf(message, L"artist: %s\r\ntitle: %s", artist.c_str(), title.c_str());
 		MessageBox(plugin.hwndParent, message, L"Juniscrobble", MB_OK);
 	}
 
