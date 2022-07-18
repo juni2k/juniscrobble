@@ -3,6 +3,7 @@
 #include <string>
 
 #include "Track.h"
+#include <chrono>
 #include <list>
 
 class Scrobbler
@@ -13,6 +14,7 @@ public:
 
 private:
   Track* staged_track = nullptr;
+  std::chrono::steady_clock::time_point staged_time;
   std::list<Track*> submissions;
   void clear_staged_track();
 };

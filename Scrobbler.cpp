@@ -2,6 +2,7 @@
 #include "Scrobbler.h"
 #include "Track.h"
 
+#include <chrono>
 #include <queue>
 #include <sstream>
 
@@ -26,6 +27,7 @@ void Scrobbler::stage_track(std::wstring artist, std::wstring title) {
   message << "Scrobbler [staging]: " << *track << std::endl;
   OutputDebugString(message.str().c_str());
 
+  this->staged_time = std::chrono::steady_clock::now();
   this->staged_track = track;
 
   // TODO: send Last.fm a "Now playing" notification here
