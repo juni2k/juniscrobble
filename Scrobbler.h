@@ -12,6 +12,7 @@ public:
   void stage_track(std::wstring artist, std::wstring title);
   void commit_track();
   void clear_staged_track();
+  void set_track_length(int seconds);
 
 private:
   Track* staged_track = nullptr;

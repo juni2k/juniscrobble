@@ -18,6 +18,22 @@ void Scrobbler::clear_staged_track() {
   }
 }
 
+void Scrobbler::set_track_length(int seconds) {
+  std::wstringstream message;
+  message << L"Scrobbler [set track length]: ";
+
+  if (this->staged_track != nullptr) {
+    this->staged_track->length = seconds;
+
+    message << seconds << L" seconds " << std::endl;
+  }
+  else {
+    message << L"Could not set track length (no staged track)" << std::endl;
+  }
+
+  OutputDebugString(message.str().c_str());
+}
+
 void Scrobbler::stage_track(std::wstring artist, std::wstring title) {
   this->clear_staged_track();
 
