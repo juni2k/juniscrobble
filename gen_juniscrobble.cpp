@@ -174,9 +174,9 @@ int init() {
 }
 
 void config() {
-	//A basic messagebox that tells you the 'config' event has been triggered.
-	//You can change this later to do whatever you want (including nothing)
-	MessageBox(plugin.hwndParent, L"Config event triggered for gen_myplugin.", L"", MB_OK);
+	/* For now, there is no config panel. Let's use it to show the scrobbler queue instead. */
+	std::wstring text = scrobbler.submissions_text();
+	MessageBox(plugin.hwndParent, text.c_str(), L"Juniscrobble", MB_OK);
 }
 
 void quit() {
