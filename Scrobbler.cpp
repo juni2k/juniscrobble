@@ -35,7 +35,36 @@ void Scrobbler::set_track_length(int seconds) {
 }
 
 void Scrobbler::stage_track(std::wstring artist, std::wstring title) {
-  this->clear_staged_track();
+  /* Make this mess readable. */
+  using namespace std::chrono;
+
+  /* Before clearing a staged track, check if we are past its runtime (which means it can be committed).
+  * Usually, this is not necessary since there is (will be) an active Timer checking if the song is
+  * past 60% of its runtime in which case it will be committed. The strategy implemented here is for
+  * tracks that are shorter than the checking interval.
+  *
+  * Also, this would be a lot simpler if Winamp sent a message when a track has ended. It doesn't, you know. */
+  if (this->staged_track != nullptr) {
+    steady_clock::time_point trackEndTime = this->staged_time + seconds(this->staged_track->length);
+    long long secondsPastTrackEnd = duration_cast<seconds>(steady_clock::now() - trackEndTime).count();
+
+    std::wstringstream message;
+    message << "Scrobbler: " << secondsPastTrackEnd << " seconds past track end ";
+    if (secondsPastTrackEnd >= 0) {
+      message << "(full listen)";
+    }
+    else {
+      message << "(incomplete listen)";
+    }
+    message << std::endl;
+    OutputDebugString(message.str().c_str());
+
+    if (secondsPastTrackEnd >= 0) {
+      this->commit_track();
+    }
+
+    this->clear_staged_track();
+  }
 
   Track *track = new Track(artist, title);
 
