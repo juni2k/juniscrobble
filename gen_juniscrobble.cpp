@@ -14,6 +14,9 @@ Juniscrobble for Winamp
 
 #include "wa_ipc.h"
 #include <string>
+#include "Scrobbler.h"
+
+#define FETCH_TRACK_LENGTH_AGAIN_TIMER_ID 1337
 
 
 // these are callback functions/events which will be called by Winamp
@@ -35,6 +38,7 @@ winampGeneralPurposePlugin plugin = {
 };
 
 WNDPROC WinampWndProc;
+Scrobbler scrobbler;
 
 wchar_t* GetPlayingFileName() {
 	return (wchar_t*)SendMessage(plugin.hwndParent, WM_WA_IPC, 0, IPC_GET_PLAYING_FILENAME);
@@ -58,7 +62,74 @@ std::wstring GetMetadata(const wchar_t *filename, const wchar_t *field) {
 	return result;
 }
 
+void FetchTrackLengthAgain(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
+	int trackLengthS = SendMessage(plugin.hwndParent, WM_WA_IPC, 1, IPC_GETOUTPUTTIME);
+
+	/* TODO: maybe try multiple times? Does the return value depend on the disk speed?
+	Maybe Winamp returns crap when the track hasn't really started playing yet? */
+
+	if (trackLengthS == -1) {
+		OutputDebugString(L"Even after waiting, Winamp couldn't return a reasonable track length.\r\n"
+		L"This track cannot be scrobbled. Sorry about that.\r\n");
+
+		scrobbler.clear_staged_track();
+	}
+	else {
+		OutputDebugString(L"Tatata! The results are in!\r\n");
+		scrobbler.set_track_length(trackLengthS);
+	}
+
+	/* We don't need this any longer. Into the trashcan it goes! */
+	KillTimer(hwnd, FETCH_TRACK_LENGTH_AGAIN_TIMER_ID);
+}
+
 LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
+	if (message == WM_WA_IPC && lParam == IPC_CB_MISC && wParam == IPC_CB_MISC_STATUS) {
+		/* Playback status has changed! */
+		/* This fires after IPC_PLAYING_FILEW, so the scrobbler already has relevant data. */
+		OutputDebugString(L"Status change: ");
+		int status = SendMessage(plugin.hwndParent, WM_WA_IPC, 0, IPC_ISPLAYING);
+		int trackLengthS;
+		switch (status) {
+		case 1:
+			/* Playing track. Feed its runtime to the scrobbler so it knows what to do
+			when staging a *new* track. Since IPC_CB_MISC comes *after* IPC_PLAYING_FILEW,
+			the scrobbler already knows about the *current* track. */
+
+			OutputDebugString(L"Playing track\r\n");
+			/* query track runtime */
+			/* For the demo song, this returns -1. No idea why. I also tried fetching the length using
+			IPC_GET_BASIC_FILE_INFOW instead, but that throws an access violation. So, "sometimes returns -1" is
+			the best behaviour I can get out of that ancient media player. Man... */
+			/* Update (10 minutes later): It ACTUALLY WORKS if you try again later. WHAT THE FUCK. */
+			trackLengthS = SendMessage(plugin.hwndParent, WM_WA_IPC, 1, IPC_GETOUTPUTTIME);
+			if (trackLengthS == -1) {
+				OutputDebugString(L"Winamp says this track has a length of -1.\r\n"
+					L"But sometimes, we can get a valid length by trying again in a second.\r\n");
+
+				SetTimer(plugin.hwndParent, FETCH_TRACK_LENGTH_AGAIN_TIMER_ID, 1000, (TIMERPROC)FetchTrackLengthAgain);
+			}
+			else {
+				wchar_t ps[64];
+				wsprintf(ps, L"-> %d seconds\r\n", trackLengthS);
+				OutputDebugString(ps);
+				scrobbler.set_track_length(trackLengthS);
+			}
+			break;
+		case 3:
+			/* TODO: make appropriate decisions */
+			OutputDebugString(L"Paused track\r\n");
+			break;
+		case 0:
+			/* TODO: make appropriate decisions */
+			OutputDebugString(L"Not playing anything\r\n");
+			break;
+		default:
+			/* You never know... */
+			OutputDebugString(L"Impossible status! What the hell?\r\n");
+		}
+	}
+
 	if (message == WM_WA_IPC && lParam == IPC_PLAYING_FILEW) {
 		/* We are playing a file! Path is in wParam. */
 
@@ -71,9 +142,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) 
 		std::wstring artist = GetMetadata(filename, L"artist");
 		std::wstring title = GetMetadata(filename, L"title");
 
-		wchar_t message[1024];
-		wsprintf(message, L"artist: %s\r\ntitle: %s", artist.c_str(), title.c_str());
-		MessageBox(plugin.hwndParent, message, L"Juniscrobble", MB_OK);
+		scrobbler.stage_track(artist, title);
 	}
 
 	// Forward event to original WndProc
