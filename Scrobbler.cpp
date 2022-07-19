@@ -80,7 +80,8 @@ void Scrobbler::commit_track() {
   message << "Scrobbler [committing]: " << *this->staged_track << std::endl;
   OutputDebugString(message.str().c_str());
 
-  this->submissions.push_back(this->staged_track);
+  this->submissions.push_back(std::move(*this->staged_track));
 
-  this->clear_staged_track();
+  /* clear_staged_track() tries to delete the object which is not what we want */
+  this->staged_track = nullptr;
 }

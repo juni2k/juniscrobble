@@ -15,6 +15,6 @@ public:
 private:
   Track* staged_track = nullptr;
   std::chrono::steady_clock::time_point staged_time;
-  std::list<Track*> submissions;
+  std::list<Track> submissions;
 };
 
