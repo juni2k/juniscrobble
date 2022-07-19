@@ -1,7 +1,6 @@
 #pragma once
-#include "pch.h"
-#include <windows.h>
 
+#include "pch.h"
 
 // plugin version (don't touch this)
 #define GPPHDR_VER 0x10

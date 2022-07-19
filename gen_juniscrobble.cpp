@@ -8,13 +8,8 @@ Juniscrobble for Winamp
 */
 
 #include "pch.h"
-#include <windows.h>
-#include <ctime>
 
 #include "gen_juniscrobble.h"
-
-#include "wa_ipc.h"
-#include <string>
 #include "Scrobbler.h"
 
 #define FETCH_TRACK_LENGTH_AGAIN_TIMER_ID 1337

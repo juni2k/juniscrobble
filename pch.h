@@ -10,4 +10,14 @@
 // add headers that you want to pre-compile here
 #include "framework.h"
 
+#include <chrono>
+#include <ctime>
+#include <list>
+#include <queue>
+#include <ostream>
+#include <sstream>
+#include <string>
+
+#include "wa_ipc.h"
+
 #endif //PCH_H

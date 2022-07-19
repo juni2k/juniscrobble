@@ -1,8 +1,6 @@
 #include "pch.h"
 #include "Track.h"
 
-#include <ostream>
-
 /* How can a language be this fucking ugly... */
 Track::Track(std::wstring artist, std::wstring title) :
   artist(artist),

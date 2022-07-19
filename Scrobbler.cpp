@@ -2,10 +2,6 @@
 #include "Scrobbler.h"
 #include "Track.h"
 
-#include <chrono>
-#include <queue>
-#include <sstream>
-
 void Scrobbler::clear_staged_track() {
   OutputDebugString(L"Scrobbler [clearing]\r\n");
 
