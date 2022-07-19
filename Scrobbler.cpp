@@ -58,8 +58,9 @@ void Scrobbler::stage_track(std::wstring artist, std::wstring title) {
     if (secondsPastTrackEnd >= 0) {
       this->commit_track();
     }
-
-    this->clear_staged_track();
+    else {
+      this->clear_staged_track();
+    }
   }
 
   Track *track = new Track(artist, title);
