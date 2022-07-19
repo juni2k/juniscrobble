@@ -9,6 +9,7 @@ Juniscrobble for Winamp
 
 #include "pch.h"
 #include <windows.h>
+#include <ctime>
 
 #include "gen_juniscrobble.h"
 
@@ -39,6 +40,7 @@ winampGeneralPurposePlugin plugin = {
 
 WNDPROC WinampWndProc;
 Scrobbler scrobbler;
+time_t lastPlayMessage = -1; /* Not that cool, but it is ok on Windows. */
 
 wchar_t* GetPlayingFileName() {
 	return (wchar_t*)SendMessage(plugin.hwndParent, WM_WA_IPC, 0, IPC_GET_PLAYING_FILENAME);
@@ -95,6 +97,24 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) 
 			/* Playing track. Feed its runtime to the scrobbler so it knows what to do
 			when staging a *new* track. Since IPC_CB_MISC comes *after* IPC_PLAYING_FILEW,
 			the scrobbler already knows about the *current* track. */
+
+			/* Fun fact: when there's an automatic track change (as it happens in a playlist),
+			Winamp sends the same playing message *twice*. No idea why. So, if we get it again
+			in less than 2 seconds, treat it as invalid. Yeah, these are vague heuristics.
+			I don't like it either. */
+		{
+			time_t thisPlayMessage = time(NULL);
+			if (lastPlayMessage != -1) {
+				int diffS = round(difftime(thisPlayMessage, lastPlayMessage));
+				if (diffS < 2) {
+					wchar_t ps[128];
+					wsprintf(ps, L"Playing track (filtered; doing nothing instead; diff: %d sec)\r\n", diffS);
+					OutputDebugString(ps);
+					break;
+				}
+			}
+			lastPlayMessage = thisPlayMessage;
+		}
 
 			OutputDebugString(L"Playing track\r\n");
 			/* query track runtime */
