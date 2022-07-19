@@ -6,4 +6,4 @@ It can now be found on [sourcehut][sourcehut].**
 
 ---
 
-4dc1c1a
+7f84021
