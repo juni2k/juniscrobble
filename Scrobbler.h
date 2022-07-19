@@ -11,6 +11,7 @@ public:
   void commit_track();
   void clear_staged_track();
   void set_track_length(int seconds);
+  std::wstring submissions_text();
 
 private:
   Track* staged_track = nullptr;

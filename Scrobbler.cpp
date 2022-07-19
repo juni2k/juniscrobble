@@ -85,3 +85,15 @@ void Scrobbler::commit_track() {
   /* clear_staged_track() tries to delete the object which is not what we want */
   this->staged_track = nullptr;
 }
+
+std::wstring Scrobbler::submissions_text() {
+  std::wstringstream s;
+  s << "Scrobbler queue:" << std::endl;
+
+  std::list<Track>::iterator it;
+  for (it = this->submissions.begin(); it != this->submissions.end(); it++) {
+    s << *it << std::endl;
+  }
+
+  return s.str();
+}
