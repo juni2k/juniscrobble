@@ -5,9 +5,9 @@
 void Scrobbler::clear_staged_track() {
   OutputDebugString(L"Scrobbler [clearing]\r\n");
 
-  if (this->staged_track != nullptr) {
-    delete this->staged_track;
-    this->staged_track = nullptr;
+  if (this->_staged_track != nullptr) {
+    delete this->_staged_track;
+    this->_staged_track = nullptr;
   }
   else {
     OutputDebugString(L"Nothing to clear!\r\n");
@@ -18,8 +18,8 @@ void Scrobbler::set_track_length(int seconds) {
   std::wstringstream message;
   message << L"Scrobbler [set track length]: ";
 
-  if (this->staged_track != nullptr) {
-    this->staged_track->length = seconds;
+  if (this->_staged_track != nullptr) {
+    this->_staged_track->length = seconds;
 
     message << seconds << L" seconds " << std::endl;
   }
@@ -40,8 +40,8 @@ void Scrobbler::stage_track(std::wstring artist, std::wstring title) {
   * tracks that are shorter than the checking interval.
   *
   * Also, this would be a lot simpler if Winamp sent a message when a track has ended. It doesn't, you know. */
-  if (this->staged_track != nullptr) {
-    steady_clock::time_point trackEndTime = this->staged_time + seconds(this->staged_track->length);
+  if (this->_staged_track != nullptr) {
+    steady_clock::time_point trackEndTime = this->staged_time + seconds(this->_staged_track->length);
     long long secondsPastTrackEnd = duration_cast<seconds>(steady_clock::now() - trackEndTime).count();
 
     std::wstringstream message;
@@ -70,20 +70,24 @@ void Scrobbler::stage_track(std::wstring artist, std::wstring title) {
   OutputDebugString(message.str().c_str());
 
   this->staged_time = std::chrono::steady_clock::now();
-  this->staged_track = track;
+  this->_staged_track = track;
 
   // TODO: send Last.fm a "Now playing" notification here
 }
 
 void Scrobbler::commit_track() {
   std::wstringstream message;
-  message << "Scrobbler [committing]: " << *this->staged_track << std::endl;
+  message << "Scrobbler [committing]: " << *this->_staged_track << std::endl;
   OutputDebugString(message.str().c_str());
 
-  this->submissions.push_back(std::move(*this->staged_track));
+  this->submissions.push_back(std::move(*this->_staged_track));
 
   /* clear_staged_track() tries to delete the object which is not what we want */
-  this->staged_track = nullptr;
+  this->_staged_track = nullptr;
+}
+
+Track* Scrobbler::staged_track() {
+  return this->_staged_track;
 }
 
 std::wstring Scrobbler::submissions_text() {
