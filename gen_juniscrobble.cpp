@@ -13,6 +13,9 @@ Juniscrobble for Winamp
 #include "Scrobbler.h"
 
 #define FETCH_TRACK_LENGTH_AGAIN_TIMER_ID 1337
+#define COMMIT_TRACK_IF_NEEDED_TIMER_ID   1338
+
+#define COMMIT_TRACK_IF_NEEDED_TIMER_INTERVAL 10 /* seconds */
 
 
 // these are callback functions/events which will be called by Winamp
@@ -80,6 +83,38 @@ void FetchTrackLengthAgain(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam
 	KillTimer(hwnd, FETCH_TRACK_LENGTH_AGAIN_TIMER_ID);
 }
 
+void CommitTrackIfNeeded(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
+	int progressMS = SendMessage(plugin.hwndParent, WM_WA_IPC, 0, IPC_GETOUTPUTTIME);
+	if (progressMS == -1) {
+		/* Nothing is playing. */
+		OutputDebugString(L"Nothing is playing, killing interval timer.\r\n");
+		KillTimer(hwnd, COMMIT_TRACK_IF_NEEDED_TIMER_ID);
+		return;
+	}
+
+	Track* track = scrobbler.staged_track();
+	if (track == nullptr) {
+		/* Should not happen, but let's handle it anyway, just in case. */
+		OutputDebugString(L"Track is NULL (this should not happen), killing interval timer.\r\n");
+		KillTimer(hwnd, COMMIT_TRACK_IF_NEEDED_TIMER_ID);
+		return;
+	}
+
+	int trackLengthS = track->length;
+	int percents = ((progressMS / 1000.0) / trackLengthS) * 100;
+
+	wchar_t ps[64];
+	wsprintf(ps, L"%d secs into track! (%d%%)\r\n", progressMS / 1000, percents);
+	OutputDebugString(ps);
+
+	if (percents >= 60) {
+		OutputDebugString(L"Track qualifies for submission.\r\n");
+		scrobbler.commit_track();
+		OutputDebugString(L"Interval timer is no longer needed, killing.\r\n");
+		KillTimer(hwnd, COMMIT_TRACK_IF_NEEDED_TIMER_ID);
+	}
+}
+
 LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
 	if (message == WM_WA_IPC && lParam == IPC_CB_MISC && wParam == IPC_CB_MISC_STATUS) {
 		/* Playback status has changed! */
@@ -112,6 +147,14 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) 
 		}
 
 			OutputDebugString(L"Playing track\r\n");
+			/* Scenario: user listens to track long enough to have it committed, then pauses the track,
+			then continues to listen till the end. Since there is no staged track any longer, we can
+			break out of this case. */
+			if (scrobbler.staged_track() == nullptr) {
+				OutputDebugString(L"No staged track (probably already committed), doing nothing.\r\n");
+				break;
+			}
+
 			/* query track runtime */
 			/* For the demo song, this returns -1. No idea why. I also tried fetching the length using
 			IPC_GET_BASIC_FILE_INFOW instead, but that throws an access violation. So, "sometimes returns -1" is
@@ -130,6 +173,9 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) 
 				OutputDebugString(ps);
 				scrobbler.set_track_length(trackLengthS);
 			}
+
+			/* Enable interval timer to decide whether a track qualifies for scrobbling */
+			SetTimer(plugin.hwndParent, COMMIT_TRACK_IF_NEEDED_TIMER_ID, COMMIT_TRACK_IF_NEEDED_TIMER_INTERVAL * 1000, (TIMERPROC)CommitTrackIfNeeded);
 			break;
 		case 3:
 			/* TODO: make appropriate decisions */
