@@ -6,4 +6,4 @@ It can now be found on [sourcehut][sourcehut].**
 
 ---
 
-652e1ee
+adb0480
